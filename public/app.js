@@ -1,7 +1,6 @@
 const STORAGE_KEY = "webhook_hub_admin_key";
 let adminKey = localStorage.getItem(STORAGE_KEY) || "";
 const openEventPanels = new Set(); // ids de clientes com o painel de eventos aberto
-let pollTimer = null;
 
 async function api(path, options = {}) {
   const res = await fetch(path, {
@@ -197,9 +196,6 @@ document.getElementById("newClientName").addEventListener("keydown", (e) => {
 
 function boot() {
   loadClients();
-  if (pollTimer) clearInterval(pollTimer);
-  // Atualiza a lista (contagens, últimos eventos) e os painéis abertos periodicamente
-  pollTimer = setInterval(loadClients, 5000);
 }
 
 trySession();
