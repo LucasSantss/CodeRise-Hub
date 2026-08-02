@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Central de Webhooks de Erro</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal">
+      <h2>Central de Webhooks de Erro</h2>
+      <p class="muted">Cole a chave de administrador impressa no console ao iniciar o servidor.</p>
+      <input id="adminKeyInput" type="password" placeholder="Chave de administrador" autocomplete="off" />
+      <div id="loginError" class="field-error" style="display:none"></div>
+      <button id="loginBtn" class="btn btn-primary" style="width:100%">Entrar</button>
+    </div>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">W</div>
+        <div>
+          <div class="brand-title">Webhook Hub</div>
+          <div class="brand-sub">Central de erros</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active">
+          <span class="nav-dot"></span>
+          Clientes
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="status-widget">
+          <div class="status-dot"></div>
+          <div>
+            <div class="status-title">Sistema operacional</div>
+            <div class="status-sub">Recebendo webhooks</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1>Clientes</h1>
+          <p class="muted">Crie um webhook por cliente e receba os erros em tempo real no Telegram</p>
+        </div>
+      </header>
+
+      <section class="content">
+
+        <div class="card create-card">
+          <div class="create-row">
+            <input id="newClientName" type="text" placeholder="Nome do cliente (ex: Loja Catarina Mina)" />
+            <button id="createClientBtn" class="btn btn-primary">+ Criar Webhook</button>
+          </div>
+        </div>
+
+        <div id="clientsList"></div>
+
+        <div id="emptyState" class="empty-state" style="display:none">
+          <p>Nenhum cliente cadastrado ainda.</p>
+          <p class="muted">Crie o primeiro cliente acima para gerar a URL de webhook.</p>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <template id="clientCardTemplate">
+    <div class="card client-card">
+      <div class="client-header">
+        <div class="client-header-left">
+          <span class="status-badge"></span>
+          <span class="client-name"></span>
+        </div>
+        <div class="client-header-actions">
+          <button class="icon-btn toggle-active-btn" title="Ativar/Desativar">⏻</button>
+          <button class="icon-btn delete-btn" title="Excluir cliente">🗑</button>
+        </div>
+      </div>
+
+      <label class="field-label">URL do Webhook</label>
+      <div class="url-row">
+        <input class="webhook-url" type="text" readonly />
+        <button class="icon-btn copy-btn" title="Copiar">⧉</button>
+      </div>
+      <p class="hint">Cole esta URL no campo "Webhook de Notificações de Erro" do sistema deste cliente.</p>
+
+      <div class="divider"></div>
+
+      <label class="field-label">Integração com Telegram</label>
+      <div class="telegram-grid">
+        <input class="telegram-bot-token" type="text" placeholder="Token do Bot (@BotFather)" />
+        <input class="telegram-chat-id" type="text" placeholder="Chat ID" />
+      </div>
+      <div class="telegram-actions">
+        <button class="btn btn-secondary save-telegram-btn">Salvar</button>
+        <button class="btn btn-ghost test-telegram-btn">Testar envio</button>
+        <span class="telegram-status"></span>
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="link-btn toggle-events-btn">Ver eventos recebidos (<span class="event-count">0</span>)</button>
+      <div class="events-panel" style="display:none">
+        <div class="events-list"></div>
+      </div>
+    </div>
+  </template>
+
+  <template id="eventItemTemplate">
+    <div class="event-item">
+      <div class="event-item-header">
+        <span class="event-title"></span>
+        <span class="event-time"></span>
+      </div>
+      <div class="event-message"></div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

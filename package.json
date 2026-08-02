@@ -1,0 +1,16 @@
+{
+  "name": "webhook-error-hub",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Central de webhooks de erro por cliente, com encaminhamento em tempo real para o Telegram.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
