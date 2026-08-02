@@ -8,6 +8,10 @@ import express from "express";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+// Carrega variáveis do .env em ambiente de desenvolvimento
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  await import('dotenv/config');
+}
 import { loadDb, saveDb } from "./lib/db.js";
 import { sendTelegramMessage, escapeHtml } from "./lib/telegram.js";
 
