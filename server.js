@@ -104,11 +104,15 @@ function publicClient(req, c) {
 app.get("/api/session", requireAdmin, (req, res) => res.json({ success: true }));
 
 // ─── Clientes ──────────────────────────────────────────────────────────────────
-app.get("/api/clients", requireAdmin, (req, res) => {
+app.get("/api/clients", requireAdmin, async (req, res) => {
+  if (process.env.DATABASE_URL) {
+    const clients = await getAllClientsFromPostgres();
+    return res.json({ success: true, clients: clients.map((c) => publicClient(req, c)) });
+  }
   res.json({ success: true, clients: db.clients.map((c) => publicClient(req, c)) });
 });
 
-app.post("/api/clients", requireAdmin, (req, res) => {
+app.post("/api/clients", requireAdmin, async (req, res) => {
   const { name } = req.body || {};
   if (!name || !String(name).trim()) {
     return res.status(400).json({ success: false, message: "Nome do cliente é obrigatório." });
@@ -125,20 +129,34 @@ app.post("/api/clients", requireAdmin, (req, res) => {
     createdAt: now,
     updatedAt: now,
   };
+  if (process.env.DATABASE_URL) {
+    const created = await createClientInPostgres(client);
+    return res.status(201).json({ success: true, client: publicClient(req, created) });
+  }
   db.clients.unshift(client);
   saveDb(db);
   res.status(201).json({ success: true, client: publicClient(req, client) });
 });
 
-app.patch("/api/clients/:id", requireAdmin, (req, res) => {
+app.patch("/api/clients/:id", requireAdmin, async (req, res) => {
+  const { name, active, telegramBotToken, telegramChatId } = req.body || {};
+  if (process.env.DATABASE_URL) {
+    if (name !== undefined && !String(name).trim()) {
+      return res.status(400).json({ success: false, message: "Nome não pode ser vazio." });
+    }
+    const updated = await updateClientInPostgres(req.params.id, {
+      name: name !== undefined ? String(name).trim() : undefined,
+      active,
+      telegramBotToken: telegramBotToken !== undefined ? (telegramBotToken ? String(telegramBotToken).trim() : null) : undefined,
+      telegramChatId: telegramChatId !== undefined ? (telegramChatId ? String(telegramChatId).trim() : null) : undefined,
+    });
+    if (!updated) return res.status(404).json({ success: false, message: "Cliente não encontrado." });
+    return res.json({ success: true, client: publicClient(req, updated) });
+  }
+
   const client = db.clients.find((c) => c.id === req.params.id);
   if (!client) return res.status(404).json({ success: false, message: "Cliente não encontrado." });
-
-  const { name, active, telegramBotToken, telegramChatId } = req.body || {};
-  if (name !== undefined) {
-    if (!String(name).trim()) return res.status(400).json({ success: false, message: "Nome não pode ser vazio." });
-    client.name = String(name).trim();
-  }
+  if (name !== undefined) client.name = String(name).trim();
   if (active !== undefined) client.active = !!active;
   if (telegramBotToken !== undefined) client.telegramBotToken = telegramBotToken ? String(telegramBotToken).trim() : null;
   if (telegramChatId !== undefined) client.telegramChatId = telegramChatId ? String(telegramChatId).trim() : null;
@@ -147,7 +165,11 @@ app.patch("/api/clients/:id", requireAdmin, (req, res) => {
   res.json({ success: true, client: publicClient(req, client) });
 });
 
-app.delete("/api/clients/:id", requireAdmin, (req, res) => {
+app.delete("/api/clients/:id", requireAdmin, async (req, res) => {
+  if (process.env.DATABASE_URL) {
+    await deleteClientFromPostgres(req.params.id);
+    return res.json({ success: true });
+  }
   const idx = db.clients.findIndex((c) => c.id === req.params.id);
   if (idx === -1) return res.status(404).json({ success: false, message: "Cliente não encontrado." });
   db.clients.splice(idx, 1);
@@ -155,7 +177,14 @@ app.delete("/api/clients/:id", requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
-app.get("/api/clients/:id/events", requireAdmin, (req, res) => {
+app.get("/api/clients/:id/events", requireAdmin, async (req, res) => {
+  if (process.env.DATABASE_URL) {
+    const client = await getClientByIdFromPostgres(req.params.id);
+    if (!client) return res.status(404).json({ success: false, message: "Cliente não encontrado." });
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, MAX_EVENTS_PER_CLIENT);
+    const events = await getClientEventsFromPostgres(req.params.id, limit);
+    return res.json({ success: true, events });
+  }
   const client = db.clients.find((c) => c.id === req.params.id);
   if (!client) return res.status(404).json({ success: false, message: "Cliente não encontrado." });
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, MAX_EVENTS_PER_CLIENT);
