@@ -42,11 +42,22 @@ const app = express();
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   const key = req.header("x-admin-key");
-  if (!key || key !== db.adminKey) {
-    return res.status(401).json({ success: false, message: "Chave de administrador inválida." });
+  if (!key) return res.status(401).json({ success: false, message: "Chave de administrador inválida." });
+
+  if (process.env.DATABASE_URL) {
+    try {
+      const pgKey = await getAdminKeyFromPostgres();
+      if (!pgKey || key !== pgKey) return res.status(401).json({ success: false, message: "Chave de administrador inválida." });
+      return next();
+    } catch (err) {
+      console.error('Erro ao validar admin key no Postgres:', err.message);
+      return res.status(500).json({ success: false, message: 'Erro interno ao validar chave.' });
+    }
   }
+
+  if (key !== db.adminKey) return res.status(401).json({ success: false, message: "Chave de administrador inválida." });
   next();
 }
 
