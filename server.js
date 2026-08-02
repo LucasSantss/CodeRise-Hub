@@ -27,7 +27,7 @@ import {
   getClientEventsFromPostgres,
   addClientEventToPostgres,
 } from "./lib/db.js";
-import { sendTelegramMessage, escapeHtml } from "./lib/telegram.js";
+import { sendTelegramMessage, escapeHtml, buildTelegramEventMessage } from "./lib/telegram.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -241,11 +241,7 @@ app.post("/webhook/:token", async (req, res) => {
   // Responde imediatamente ao chamador — o encaminhamento ao Telegram roda em
   // paralelo, sem bloquear nem depender da resposta deste webhook.
   if (client.active && client.telegramBotToken && client.telegramChatId) {
-    const text =
-      `🚨 <b>${escapeHtml(event.title)}</b>\n` +
-      `Cliente: ${escapeHtml(client.name)}\n\n` +
-      `${escapeHtml(event.message)}\n\n` +
-      `<i>${new Date(event.receivedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</i>`;
+    const text = buildTelegramEventMessage(client.name, event);
     sendTelegramMessage(client.telegramBotToken, client.telegramChatId, text);
   }
 
