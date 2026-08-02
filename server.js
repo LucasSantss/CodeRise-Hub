@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
   await import('dotenv/config');
 }
-import { loadDb, saveDb } from "./lib/db.js";
+import { loadDb, saveDb, getAdminKeyFromPostgres, setAdminKeyPostgres } from "./lib/db.js";
 import { sendTelegramMessage, escapeHtml } from "./lib/telegram.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,9 +20,22 @@ const PORT = process.env.PORT || 3000;
 const MAX_EVENTS_PER_CLIENT = 300;
 
 const db = loadDb();
-if (!db.adminKey) {
-  db.adminKey = crypto.randomBytes(24).toString("hex");
-  saveDb(db);
+if (process.env.DATABASE_URL) {
+  const pgKey = await getAdminKeyFromPostgres();
+  if (pgKey) {
+    db.adminKey = pgKey;
+  } else {
+    if (!db.adminKey) {
+      db.adminKey = crypto.randomBytes(24).toString("hex");
+      saveDb(db);
+    }
+    await setAdminKeyPostgres(db.adminKey);
+  }
+} else {
+  if (!db.adminKey) {
+    db.adminKey = crypto.randomBytes(24).toString("hex");
+    saveDb(db);
+  }
 }
 
 const app = express();
