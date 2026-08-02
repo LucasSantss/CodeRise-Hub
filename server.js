@@ -66,6 +66,9 @@ function webhookUrlFor(req, token) {
 }
 
 function publicClient(req, c) {
+  const eventCount = c.eventCount ?? c.events?.length ?? 0;
+  const lastEventAt = c.lastEventAt ?? c.events?.[0]?.receivedAt ?? null;
+
   return {
     id: c.id,
     name: c.name,
@@ -75,8 +78,8 @@ function publicClient(req, c) {
     telegramConfigured: !!(c.telegramBotToken && c.telegramChatId),
     telegramChatId: c.telegramChatId || null,
     telegramBotTokenMasked: c.telegramBotToken ? `••••••${c.telegramBotToken.slice(-4)}` : null,
-    eventCount: c.events.length,
-    lastEventAt: c.events[0]?.receivedAt || null,
+    eventCount,
+    lastEventAt,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -145,7 +148,12 @@ app.get("/api/clients/:id/events", requireAdmin, (req, res) => {
 });
 
 app.post("/api/clients/:id/test-telegram", requireAdmin, async (req, res) => {
-  const client = db.clients.find((c) => c.id === req.params.id);
+  let client;
+  if (process.env.DATABASE_URL) {
+    client = await getClientByIdFromPostgres(req.params.id);
+  } else {
+    client = db.clients.find((c) => c.id === req.params.id);
+  }
   if (!client) return res.status(404).json({ success: false, message: "Cliente não encontrado." });
   if (!client.telegramBotToken || !client.telegramChatId) {
     return res.status(400).json({ success: false, message: "Configure o bot e o chat ID do Telegram antes de testar." });
@@ -159,8 +167,13 @@ app.post("/api/clients/:id/test-telegram", requireAdmin, async (req, res) => {
 });
 
 // ─── Webhook receiver (público — chamado pelos sistemas dos clientes) ──────────
-app.post("/webhook/:token", (req, res) => {
-  const client = db.clients.find((c) => c.token === req.params.token);
+app.post("/webhook/:token", async (req, res) => {
+  let client;
+  if (process.env.DATABASE_URL) {
+    client = await getClientByTokenFromPostgres(req.params.token);
+  } else {
+    client = db.clients.find((c) => c.token === req.params.token);
+  }
   if (!client) return res.status(404).json({ success: false, message: "Webhook não encontrado." });
 
   const payload = req.body && typeof req.body === "object" ? req.body : {};
@@ -172,9 +185,14 @@ app.post("/webhook/:token", (req, res) => {
     message: payload.message || "",
     raw: payload,
   };
-  client.events.unshift(event);
-  if (client.events.length > MAX_EVENTS_PER_CLIENT) client.events.length = MAX_EVENTS_PER_CLIENT;
-  saveDb(db);
+
+  if (process.env.DATABASE_URL) {
+    await addClientEventToPostgres(client.id, event);
+  } else {
+    client.events.unshift(event);
+    if (client.events.length > MAX_EVENTS_PER_CLIENT) client.events.length = MAX_EVENTS_PER_CLIENT;
+    saveDb(db);
+  }
 
   // Responde imediatamente ao chamador — o encaminhamento ao Telegram roda em
   // paralelo, sem bloquear nem depender da resposta deste webhook.
