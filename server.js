@@ -238,11 +238,14 @@ app.post("/webhook/:token", async (req, res) => {
     saveDb(db);
   }
 
-  // Responde imediatamente ao chamador — o encaminhamento ao Telegram roda em
-  // paralelo, sem bloquear nem depender da resposta deste webhook.
+  // Garante que a mensagem para o Telegram seja enviada após gravar o evento,
+  // antes de responder, para evitar perda em ambientes serverless.
   if (client.active && client.telegramBotToken && client.telegramChatId) {
     const text = buildTelegramEventMessage(client.name, event);
-    sendTelegramMessage(client.telegramBotToken, client.telegramChatId, text);
+    const sent = await sendTelegramMessage(client.telegramBotToken, client.telegramChatId, text);
+    if (!sent) {
+      console.warn(`Falha ao enviar notificação Telegram para cliente ${client.id}`);
+    }
   }
 
   res.status(200).json({ success: true });
